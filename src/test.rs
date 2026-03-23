@@ -478,3 +478,140 @@ fn test_batch_revoke_empty_vec() {
     let count = client.revoke_attestations_batch(&issuer, &ids);
     assert_eq!(count, 0);
 }
+
+// ── Claim type registry tests ─────────────────────────────────────────────────
+
+#[test]
+fn test_register_and_get_claim_type() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let ct = String::from_str(&env, "KYC_PASSED");
+    let desc = String::from_str(&env, "Subject has passed KYC verification");
+    client.register_claim_type(&admin, &ct, &desc);
+
+    let result = client.get_claim_type_description(&ct);
+    assert_eq!(result, Some(desc));
+}
+
+#[test]
+fn test_get_claim_type_description_unknown_returns_none() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let result = client.get_claim_type_description(&String::from_str(&env, "UNKNOWN"));
+    assert_eq!(result, None);
+}
+
+#[test]
+fn test_register_claim_type_updates_description() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let ct = String::from_str(&env, "KYC_PASSED");
+    client.register_claim_type(&admin, &ct, &String::from_str(&env, "v1 description"));
+    client.register_claim_type(&admin, &ct, &String::from_str(&env, "v2 description"));
+
+    let result = client.get_claim_type_description(&ct);
+    assert_eq!(result, Some(String::from_str(&env, "v2 description")));
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #3)")]
+fn test_register_claim_type_unauthorized() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let not_admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    client.register_claim_type(
+        &not_admin,
+        &String::from_str(&env, "KYC_PASSED"),
+        &String::from_str(&env, "desc"),
+    );
+}
+
+#[test]
+fn test_list_claim_types_pagination() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let types = [
+        ("KYC_PASSED",          "Passed KYC"),
+        ("ACCREDITED_INVESTOR", "Accredited investor status"),
+        ("MERCHANT_VERIFIED",   "Verified merchant"),
+        ("AML_CLEARED",         "AML screening passed"),
+        ("SANCTIONS_CHECKED",   "Sanctions list checked"),
+    ];
+
+    for (ct, desc) in types.iter() {
+        client.register_claim_type(
+            &admin,
+            &String::from_str(&env, ct),
+            &String::from_str(&env, desc),
+        );
+    }
+
+    let page1 = client.list_claim_types(&0, &2);
+    assert_eq!(page1.len(), 2);
+    assert_eq!(page1.get(0).unwrap(), String::from_str(&env, "KYC_PASSED"));
+
+    let page2 = client.list_claim_types(&2, &2);
+    assert_eq!(page2.len(), 2);
+
+    let page3 = client.list_claim_types(&4, &2);
+    assert_eq!(page3.len(), 1);
+    assert_eq!(page3.get(0).unwrap(), String::from_str(&env, "SANCTIONS_CHECKED"));
+}
+
+#[test]
+fn test_list_claim_types_empty() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let result = client.list_claim_types(&0, &10);
+    assert_eq!(result.len(), 0);
+}
+
+#[test]
+fn test_register_claim_type_emits_event() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (contract_id, client) = create_test_contract(&env);
+    client.initialize(&admin);
+
+    let ct = String::from_str(&env, "KYC_PASSED");
+    client.register_claim_type(&admin, &ct, &String::from_str(&env, "KYC verified"));
+
+    let clmtype_sym = soroban_sdk::symbol_short!("clmtype");
+    let found = env.events().all().iter().any(|(id, topics, _)| {
+        id == contract_id
+            && topics.get(0).map(|v| v.shallow_eq(&clmtype_sym.to_val())).unwrap_or(false)
+    });
+    assert!(found, "expected a clmtype event to be emitted");
+}

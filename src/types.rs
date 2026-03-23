@@ -1,5 +1,15 @@
 use soroban_sdk::{contracterror, contracttype, Address, Env, String};
 
+/// A registered claim type with a human-readable description.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ClaimTypeInfo {
+    /// The claim type identifier, e.g. `"KYC_PASSED"`.
+    pub claim_type: String,
+    /// Human-readable description of what this claim type represents.
+    pub description: String,
+}
+
 /// A single attestation record stored on-chain.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]

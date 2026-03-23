@@ -5,7 +5,7 @@
 //! (issuers, attestations, indexes) each have their own TTL entry.
 
 use soroban_sdk::{contracttype, Address, Env, String, Vec};
-use crate::types::{Attestation, Error};
+use crate::types::{Attestation, ClaimTypeInfo, Error};
 
 /// Keys used to address data in contract storage.
 #[contracttype]
@@ -20,6 +20,10 @@ pub enum StorageKey {
     SubjectAttestations(Address),
     /// Ordered list of attestation IDs created by an issuer address.
     IssuerAttestations(Address),
+    /// Registered claim type info keyed by claim type string.
+    ClaimType(String),
+    /// Ordered list of all registered claim type strings.
+    ClaimTypeList,
 }
 
 const DAY_IN_LEDGERS: u32 = 17280;
@@ -128,5 +132,40 @@ impl Storage {
         attestations.push_back(attestation_id.clone());
         env.storage().persistent().set(&key, &attestations);
         env.storage().persistent().extend_ttl(&key, INSTANCE_LIFETIME, INSTANCE_LIFETIME);
+    }
+
+    /// Return `true` if a claim type is registered.
+    pub fn has_claim_type(env: &Env, claim_type: &String) -> bool {
+        env.storage().persistent().has(&StorageKey::ClaimType(claim_type.clone()))
+    }
+
+    /// Persist a claim type and its description, and append to the ordered list.
+    pub fn set_claim_type(env: &Env, info: &ClaimTypeInfo) {
+        let key = StorageKey::ClaimType(info.claim_type.clone());
+        let is_new = !env.storage().persistent().has(&key);
+        env.storage().persistent().set(&key, info);
+        env.storage().persistent().extend_ttl(&key, INSTANCE_LIFETIME, INSTANCE_LIFETIME);
+
+        if is_new {
+            let list_key = StorageKey::ClaimTypeList;
+            let mut list: Vec<String> = env.storage().persistent()
+                .get(&list_key)
+                .unwrap_or(Vec::new(env));
+            list.push_back(info.claim_type.clone());
+            env.storage().persistent().set(&list_key, &list);
+            env.storage().persistent().extend_ttl(&list_key, INSTANCE_LIFETIME, INSTANCE_LIFETIME);
+        }
+    }
+
+    /// Retrieve a claim type's info, or `None` if not registered.
+    pub fn get_claim_type(env: &Env, claim_type: &String) -> Option<ClaimTypeInfo> {
+        env.storage().persistent().get(&StorageKey::ClaimType(claim_type.clone()))
+    }
+
+    /// Return the ordered list of all registered claim type strings.
+    pub fn get_claim_type_list(env: &Env) -> Vec<String> {
+        env.storage().persistent()
+            .get(&StorageKey::ClaimTypeList)
+            .unwrap_or(Vec::new(env))
     }
 }

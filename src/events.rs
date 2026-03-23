@@ -70,4 +70,18 @@ impl Events {
             attestation_id.clone(),
         );
     }
+
+    /// Emit an event when a new claim type is registered.
+    ///
+    /// # Event schema
+    /// ```text
+    /// topics: ("clmtype",)
+    /// data:   (claim_type: String, description: String)
+    /// ```
+    pub fn claim_type_registered(env: &Env, claim_type: &String, description: &String) {
+        env.events().publish(
+            (symbol_short!("clmtype"),),
+            (claim_type.clone(), description.clone()),
+        );
+    }
 }
