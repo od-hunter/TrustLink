@@ -55,13 +55,15 @@ impl Attestation {
 
 use soroban_sdk::{contracterror, contracttype, Address, Env, String};
 
-/// A registered claim type with a human-readable description.
+/// Contract metadata returned by `get_contract_metadata`.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ClaimTypeInfo {
-    /// The claim type identifier, e.g. `"KYC_PASSED"`.
-    pub claim_type: String,
-    /// Human-readable description of what this claim type represents.
+pub struct ContractMetadata {
+    /// Contract name.
+    pub name: String,
+    /// Semver version string, e.g. `"1.0.0"`.
+    pub version: String,
+    /// Short description of the contract.
     pub description: String,
 }
 
