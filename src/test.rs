@@ -478,3 +478,134 @@ fn test_batch_revoke_empty_vec() {
     let count = client.revoke_attestations_batch(&issuer, &ids);
     assert_eq!(count, 0);
 }
+
+// ── Attestation count query tests ─────────────────────────────────────────────
+
+#[test]
+fn test_subject_attestation_count_zero() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, _, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+    assert_eq!(client.get_subject_attestation_count(&subject), 0);
+}
+
+#[test]
+fn test_subject_attestation_count_after_create() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &None);
+    assert_eq!(client.get_subject_attestation_count(&subject), 1);
+
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "ACCREDITED_INVESTOR"), &None);
+    assert_eq!(client.get_subject_attestation_count(&subject), 2);
+}
+
+#[test]
+fn test_subject_attestation_count_includes_revoked() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    let id = client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &None);
+    client.revoke_attestation(&issuer, &id);
+
+    // Revoked attestations are still counted in the total
+    assert_eq!(client.get_subject_attestation_count(&subject), 1);
+}
+
+#[test]
+fn test_issuer_attestation_count_zero() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    assert_eq!(client.get_issuer_attestation_count(&issuer), 0);
+}
+
+#[test]
+fn test_issuer_attestation_count_after_create() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let s1 = Address::generate(&env);
+    let s2 = Address::generate(&env);
+
+    client.create_attestation(&issuer, &s1, &String::from_str(&env, "KYC_PASSED"), &None);
+    assert_eq!(client.get_issuer_attestation_count(&issuer), 1);
+
+    client.create_attestation(&issuer, &s2, &String::from_str(&env, "KYC_PASSED"), &None);
+    assert_eq!(client.get_issuer_attestation_count(&issuer), 2);
+}
+
+#[test]
+fn test_issuer_attestation_count_includes_revoked() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    let id = client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &None);
+    client.revoke_attestation(&issuer, &id);
+
+    assert_eq!(client.get_issuer_attestation_count(&issuer), 1);
+}
+
+#[test]
+fn test_valid_claim_count_zero() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, _, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+    assert_eq!(client.get_valid_claim_count(&subject), 0);
+}
+
+#[test]
+fn test_valid_claim_count_after_create() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &None);
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "ACCREDITED_INVESTOR"), &None);
+    assert_eq!(client.get_valid_claim_count(&subject), 2);
+}
+
+#[test]
+fn test_valid_claim_count_excludes_revoked() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    let id = client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &None);
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "ACCREDITED_INVESTOR"), &None);
+    client.revoke_attestation(&issuer, &id);
+
+    // One revoked, one valid
+    assert_eq!(client.get_valid_claim_count(&subject), 1);
+}
+
+#[test]
+fn test_valid_claim_count_excludes_expired() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup_batch_env(&env);
+    let subject = Address::generate(&env);
+
+    let current_time = env.ledger().timestamp();
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "KYC_PASSED"), &Some(current_time + 100));
+    client.create_attestation(&issuer, &subject, &String::from_str(&env, "ACCREDITED_INVESTOR"), &None);
+
+    // Both valid before expiry
+    assert_eq!(client.get_valid_claim_count(&subject), 2);
+
+    env.ledger().with_mut(|li| li.timestamp = current_time + 200);
+
+    // One expired, one still valid
+    assert_eq!(client.get_valid_claim_count(&subject), 1);
+}

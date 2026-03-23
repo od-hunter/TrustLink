@@ -456,4 +456,40 @@ impl TrustLinkContract {
     pub fn get_admin(env: Env) -> Result<Address, Error> {
         Storage::get_admin(&env)
     }
+
+    /// Return the total number of attestations ever created for a subject.
+    ///
+    /// Includes revoked and expired attestations. Returns 0 if the subject
+    /// has no attestations.
+    pub fn get_subject_attestation_count(env: Env, subject: Address) -> u32 {
+        Storage::get_subject_attestations(&env, &subject).len()
+    }
+
+    /// Return the total number of attestations ever created by an issuer.
+    ///
+    /// Includes revoked and expired attestations. Returns 0 if the issuer
+    /// has created no attestations.
+    pub fn get_issuer_attestation_count(env: Env, issuer: Address) -> u32 {
+        Storage::get_issuer_attestations(&env, &issuer).len()
+    }
+
+    /// Return the number of currently valid attestations for a subject.
+    ///
+    /// Only counts attestations that are neither revoked nor expired.
+    /// Returns 0 if the subject has no valid attestations.
+    pub fn get_valid_claim_count(env: Env, subject: Address) -> u32 {
+        let attestation_ids = Storage::get_subject_attestations(&env, &subject);
+        let current_time = env.ledger().timestamp();
+        let mut count: u32 = 0;
+
+        for id in attestation_ids.iter() {
+            if let Ok(attestation) = Storage::get_attestation(&env, &id) {
+                if attestation.get_status(current_time) == AttestationStatus::Valid {
+                    count += 1;
+                }
+            }
+        }
+
+        count
+    }
 }
