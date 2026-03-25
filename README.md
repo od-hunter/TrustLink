@@ -653,6 +653,12 @@ Tests cover:
 4. **Time-based Expiration**: Automatic invalidation of expired claims
 5. **Event Transparency**: All changes are logged for auditability
 
+For a full description of the trust hierarchy, threat model, known limitations,
+and operational security recommendations, see [docs/security.md](docs/security.md).
+
+For the pre-mainnet line-by-line authorization audit, see
+[docs/security-review.md](docs/security-review.md).
+
 ## Use Cases
 
 - **DeFi Protocols**: Verify KYC before lending/borrowing
