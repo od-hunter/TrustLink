@@ -185,11 +185,11 @@ pub struct TrustLinkContract;
 #[contractimpl]
 impl TrustLinkContract {
     pub fn initialize(env: Env, admin: Address, ttl_days: Option<u32>) -> Result<(), Error> {
+        admin.require_auth();
+
         if Storage::has_admin(&env) {
             return Err(Error::AlreadyInitialized);
         }
-
-        admin.require_auth();
         Storage::set_admin(&env, &admin);
         Storage::set_version(&env, &String::from_str(&env, "1.0.0"));
         Storage::set_fee_config(&env, &default_fee_config(&admin));
@@ -567,6 +567,7 @@ impl TrustLinkContract {
         reason: Option<String>,
     ) -> Result<(), Error> {
         issuer.require_auth();
+        Validation::require_issuer(&env, &issuer)?;
         validate_reason(&reason)?;
         let mut attestation = Storage::get_attestation(&env, &attestation_id)?;
 
@@ -680,6 +681,7 @@ impl TrustLinkContract {
         new_expiration: Option<u64>,
     ) -> Result<(), Error> {
         issuer.require_auth();
+        Validation::require_issuer(&env, &issuer)?;
 
         if let Some(value) = new_expiration {
             if value <= env.ledger().timestamp() {

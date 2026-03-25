@@ -37,7 +37,7 @@ fn setup(env: &Env) -> (Address, Address, TrustLinkContractClient<'_>) {
     let admin = Address::generate(env);
     let issuer = Address::generate(env);
     client.initialize(&admin, &None);
-    client.register_issuer(&admin, &issuer, &None);
+    client.register_issuer(&admin, &issuer);
     (admin, issuer, client)
 }
 
@@ -779,9 +779,9 @@ fn setup_multisig(
     let issuer2 = Address::generate(env);
     let issuer3 = Address::generate(env);
     client.initialize(&admin, &None);
-    client.register_issuer(&admin, &issuer1, &None);
-    client.register_issuer(&admin, &issuer2, &None);
-    client.register_issuer(&admin, &issuer3, &None);
+    client.register_issuer(&admin, &issuer1);
+    client.register_issuer(&admin, &issuer2);
+    client.register_issuer(&admin, &issuer3);
     (issuer1, issuer2, issuer3, admin, client)
 }
 
@@ -847,7 +847,7 @@ fn test_multisig_non_required_signer_rejected() {
 
     let (issuer1, issuer2, issuer3, admin, client) = setup_multisig(&env);
     let outsider = Address::generate(&env);
-    client.register_issuer(&admin, &outsider, &None);
+    client.register_issuer(&admin, &outsider);
 
     let subject = Address::generate(&env);
     let claim_type = String::from_str(&env, "ACCREDITED_INVESTOR");
