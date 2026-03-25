@@ -176,4 +176,17 @@ impl Events {
             (attestation_id.clone(), timestamp),
         );
     }
+
+    /// Emitted when an expiration hook is triggered for a subject's attestation.
+    pub fn expiration_hook_triggered(
+        env: &Env,
+        subject: &Address,
+        attestation_id: &String,
+        expiration: u64,
+    ) {
+        env.events().publish(
+            (symbol_short!("exp_hook"), subject.clone()),
+            (attestation_id.clone(), expiration),
+        );
+    }
 }

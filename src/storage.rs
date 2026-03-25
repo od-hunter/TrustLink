@@ -28,7 +28,7 @@
 //! - `FeeConfig` — global attestation fee settings.
 //! - `GlobalStats` — running counters for total attestations, revocations, and issuers.
 
-use crate::types::{Attestation, ClaimTypeInfo, Endorsement, Error, FeeConfig, GlobalStats, IssuerMetadata, MultiSigProposal, TtlConfig};
+use crate::types::{Attestation, ClaimTypeInfo, Endorsement, Error, ExpirationHook, FeeConfig, GlobalStats, IssuerMetadata, IssuerStats, IssuerTier, MultiSigProposal, TtlConfig};
 use soroban_sdk::{contracttype, Address, Env, String, Vec};
 
 /// Keys used to address data in contract storage.
@@ -64,6 +64,12 @@ pub enum StorageKey {
     Endorsements(String),
     /// Global contract statistics (total attestations, revocations, issuers).
     GlobalStats,
+    /// Trust tier for a registered issuer.
+    IssuerTier(Address),
+    /// Per-issuer statistics keyed by issuer address.
+    IssuerStats(Address),
+    /// Expiration notification hook for a subject address.
+    ExpirationHook(Address),
 }
 
 const DAY_IN_LEDGERS: u32 = 17280;
@@ -430,5 +436,51 @@ impl Storage {
         let mut stats = Self::get_global_stats(env);
         stats.total_issuers = stats.total_issuers.saturating_sub(1);
         Self::set_global_stats(env, &stats);
+    }
+
+    /// Persist the trust tier for `issuer`.
+    pub fn set_issuer_tier(env: &Env, issuer: &Address, tier: &IssuerTier) {
+        let key = StorageKey::IssuerTier(issuer.clone());
+        let ttl = get_ttl_lifetime(env);
+        env.storage().persistent().set(&key, tier);
+        env.storage().persistent().extend_ttl(&key, ttl, ttl);
+    }
+
+    /// Retrieve the trust tier for `issuer`, or `None` if not set.
+    pub fn get_issuer_tier(env: &Env, issuer: &Address) -> Option<IssuerTier> {
+        env.storage()
+            .persistent()
+            .get(&StorageKey::IssuerTier(issuer.clone()))
+    }
+
+    /// Retrieve per-issuer stats, returning zeroed defaults if not yet set.
+    pub fn get_issuer_stats(env: &Env, issuer: &Address) -> IssuerStats {
+        env.storage()
+            .persistent()
+            .get(&StorageKey::IssuerStats(issuer.clone()))
+            .unwrap_or(IssuerStats { total_issued: 0 })
+    }
+
+    /// Persist per-issuer stats.
+    pub fn set_issuer_stats(env: &Env, issuer: &Address, stats: &IssuerStats) {
+        let key = StorageKey::IssuerStats(issuer.clone());
+        let ttl = get_ttl_lifetime(env);
+        env.storage().persistent().set(&key, stats);
+        env.storage().persistent().extend_ttl(&key, ttl, ttl);
+    }
+
+    /// Retrieve the expiration hook for `subject`, or `None` if not registered.
+    pub fn get_expiration_hook(env: &Env, subject: &Address) -> Option<ExpirationHook> {
+        env.storage()
+            .persistent()
+            .get(&StorageKey::ExpirationHook(subject.clone()))
+    }
+
+    /// Persist an expiration hook for `subject`.
+    pub fn set_expiration_hook(env: &Env, subject: &Address, hook: &ExpirationHook) {
+        let key = StorageKey::ExpirationHook(subject.clone());
+        let ttl = get_ttl_lifetime(env);
+        env.storage().persistent().set(&key, hook);
+        env.storage().persistent().extend_ttl(&key, ttl, ttl);
     }
 }

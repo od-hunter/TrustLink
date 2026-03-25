@@ -1,5 +1,6 @@
 #![no_std]
 
+mod errors;
 mod events;
 mod storage;
 pub mod types;
@@ -8,13 +9,14 @@ mod validation;
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contractimpl, token::TokenClient, Address, Bytes, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, token::TokenClient, Address, Env, String, Vec};
 
 use crate::events::Events;
 use crate::storage::Storage;
 use crate::types::{
-    Attestation, AttestationStatus, ClaimTypeInfo, ContractMetadata, Endorsement, Error, FeeConfig,
-    GlobalStats, IssuerMetadata, MultiSigProposal, TtlConfig, MULTISIG_PROPOSAL_TTL_SECS,
+    Attestation, AttestationStatus, ClaimTypeInfo, ContractConfig, ContractMetadata, Endorsement,
+    Error, FeeConfig, GlobalStats, IssuerMetadata, IssuerStats, IssuerTier, MultiSigProposal,
+    TtlConfig, MULTISIG_PROPOSAL_TTL_SECS,
 };
 use crate::validation::Validation;
 
@@ -226,7 +228,6 @@ impl TrustLinkContract {
     pub fn register_issuer(env: Env, admin: Address, issuer: Address) -> Result<(), Error> {
         admin.require_auth();
         Validation::require_admin(&env, &admin)?;
-        let timestamp = env.ledger().timestamp();
         Storage::add_issuer(&env, &issuer);
         Storage::increment_total_issuers(&env);
         Events::issuer_registered(&env, &issuer, &admin, env.ledger().timestamp());
