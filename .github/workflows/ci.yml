@@ -6,6 +6,19 @@ on:
   pull_request:
 
 jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: rustup show
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+
   ci:
     name: Build and Test
     runs-on: ubuntu-latest

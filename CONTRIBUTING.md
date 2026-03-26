@@ -184,6 +184,111 @@ Run both before every commit.
 
 5. **Review**: at least one approval is required before merging. Address all review comments; force-push to the same branch to update the PR.
 
+## Security & Dependency Management
+
+### Handling Audit Findings
+
+TrustLink runs automated security audits on every push and weekly via scheduled scans. When vulnerabilities are detected:
+
+#### 1. **Automatic Detection**
+
+- **On every push**: `cargo audit --deny warnings` runs in CI and blocks merges if vulnerabilities are found
+- **Weekly**: Scheduled audit runs Monday at 00:00 UTC; failures create a GitHub issue with label `security`
+
+#### 2. **Severity Assessment**
+
+When a vulnerability is reported:
+
+| Severity | Action | Timeline |
+|----------|--------|----------|
+| **Critical** | Blocks all merges; must fix immediately | Same day |
+| **High** | Blocks merges; fix within 48 hours | 2 days |
+| **Medium** | Blocks merges; fix within 1 week | 7 days |
+| **Low** | Can be accepted if justified; document in `Cargo.audit` | Case-by-case |
+
+#### 3. **Resolution Options**
+
+**Option A: Update the dependency**
+
+```bash
+# Update to a patched version
+cargo update <crate-name>
+
+# Verify the fix
+cargo audit
+
+# Test thoroughly
+cargo test
+```
+
+**Option B: Accept the vulnerability (Low severity only)**
+
+If the vulnerability does not affect TrustLink's usage pattern:
+
+1. Open `Cargo.audit` and add an entry:
+
+```toml
+[[advisories]]
+id = "RUSTSEC-YYYY-NNNNN"
+reason = "Vulnerability does not affect our usage - we do not use feature X"
+date = "2024-01-15"
+reviewer = "your-github-username"
+```
+
+2. Run audit to verify it's accepted:
+
+```bash
+cargo audit
+```
+
+3. Commit with clear message:
+
+```bash
+git add Cargo.audit
+git commit -m "security: accept RUSTSEC-YYYY-NNNNN - documented in Cargo.audit"
+```
+
+#### 4. **Review Process**
+
+- All vulnerability fixes require at least one approval
+- Reviewer must verify:
+  - The fix doesn't introduce breaking changes
+  - Tests still pass
+  - No new vulnerabilities are introduced
+- Document the decision in the PR description
+
+#### 5. **Escalation**
+
+For critical vulnerabilities affecting production:
+
+1. Create a private security advisory (GitHub Settings → Security → Advisories)
+2. Notify maintainers immediately
+3. Prepare a patch release
+4. Do not disclose publicly until patch is available
+
+### Running Audits Locally
+
+```bash
+# Check for vulnerabilities
+cargo audit
+
+# Deny any warnings (same as CI)
+cargo audit --deny warnings
+
+# Generate a JSON report
+cargo audit --json > audit-report.json
+
+# Check specific advisory
+cargo audit --advisory RUSTSEC-YYYY-NNNNN
+```
+
+### Dependency Update Policy
+
+- Keep dependencies up-to-date with security patches
+- Review changelogs before major version updates
+- Test thoroughly after updates
+- Document breaking changes in PR description
+
 ## Reporting Issues
 
 Open a GitHub issue with:
