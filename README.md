@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/afurious/TrustLink/actions/workflows/ci.yml/badge.svg)](https://github.com/afurious/TrustLink/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/afurious/TrustLink/branch/main/graph/badge.svg)](https://codecov.io/gh/afurious/TrustLink)
+[![Security Audit](https://img.shields.io/badge/Security%20Audit-In%20Progress-yellow)](./AUDIT_SCOPE.md)
 
 TrustLink is a Soroban smart contract that provides a reusable trust layer for the Stellar blockchain. It enables trusted issuers, bridge contracts, and administrators to create, import, manage, and revoke attestations about wallet addresses, allowing other contracts and applications to verify claims before executing financial operations.
 
@@ -23,6 +24,45 @@ TrustLink solves the problem of decentralized identity verification and trust es
 - **Event Emission**: All state changes emit events for off-chain indexing
 - **Query Interface**: Easy verification of claims for other contracts
 - **Pagination**: Efficient listing of attestations per subject or issuer
+
+## Security
+
+TrustLink is designed with security as a first-class concern. Before mainnet deployment with real funds, the contract undergoes comprehensive external security audits.
+
+### Audit Status
+
+- **Current Status:** Security audit in progress
+- **Audit Scope:** [AUDIT_SCOPE.md](./AUDIT_SCOPE.md)
+- **Firm Selection:** [AUDIT_FIRM_SELECTION.md](./AUDIT_FIRM_SELECTION.md)
+- **Security Review:** [docs/security-review.md](./docs/security-review.md)
+- **Security Model:** [docs/security.md](./docs/security.md)
+
+### Pre-Audit Findings
+
+Three security findings were identified in the pre-audit review and must be resolved before mainnet deployment:
+
+1. **FINDING-001 [MEDIUM]:** `initialize()` state read before auth
+2. **FINDING-002 [HIGH]:** `revoke_attestation()` missing `require_issuer` check
+3. **FINDING-003 [HIGH]:** `update_expiration()` missing `require_issuer` check
+
+See [docs/security-review.md](./docs/security-review.md) for details and remediation.
+
+### Security Documentation
+
+- **Trust Hierarchy:** [docs/security.md](./docs/security.md) - Admin, issuer, and subject roles
+- **Threat Model:** [docs/security.md](./docs/security.md) - Known limitations and mitigations
+- **GDPR Compliance:** [docs/compliance.md](./docs/compliance.md) - Right to erasure and data minimization
+- **Monitoring:** [docs/monitoring.md](./docs/monitoring.md) - Event streaming and alerting
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please email security@trustlink.io with:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+- Suggested fix (if any)
+
+Please do not disclose security issues publicly until they have been addressed.
 
 ## Architecture
 
