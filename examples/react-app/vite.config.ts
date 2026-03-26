@@ -7,4 +7,16 @@ export default defineConfig({
   define: {
     global: "globalThis",
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          stellar: ["@stellar/stellar-sdk"],
+          freighter: ["@stellar/freighter-api"],
+          react: ["react", "react-dom"],
+        },
+      },
+    },
+  },
 });
