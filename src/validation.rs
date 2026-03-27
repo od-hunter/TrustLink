@@ -16,7 +16,7 @@
 
 use crate::storage::Storage;
 use crate::types::Error;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, Env, String};
 
 /// Authorization checks used by contract entry points.
 pub struct Validation;
@@ -64,6 +64,35 @@ impl Validation {
     pub fn require_not_paused(env: &Env) -> Result<(), Error> {
         if Storage::is_paused(env) {
             return Err(Error::ContractPaused);
+        }
+        Ok(())
+    }
+
+    /// Validate a `claim_type` string.
+    ///
+    /// # Rules
+    /// - Maximum 64 characters.
+    /// - Only ASCII alphanumeric characters (`A-Z`, `a-z`, `0-9`) and underscores (`_`) are allowed.
+    ///
+    /// # Errors
+    /// - [`Error::InvalidClaimType`] — length exceeds 64 or contains disallowed characters.
+    pub fn validate_claim_type(claim_type: &String) -> Result<(), Error> {
+        let len = claim_type.len();
+        if len > 64 {
+            return Err(Error::InvalidClaimType);
+        }
+        // Copy bytes out of the host-side String for inspection.
+        // len is u32 in Soroban SDK; safe to cast since we already checked <= 64.
+        let mut buf = [0u8; 64];
+        let slice = &mut buf[..len as usize];
+        claim_type.copy_into_slice(slice);
+        for &b in slice.iter() {
+            let is_alpha = b.is_ascii_alphabetic();
+            let is_digit = b.is_ascii_digit();
+            let is_underscore = b == b'_';
+            if !is_alpha && !is_digit && !is_underscore {
+                return Err(Error::InvalidClaimType);
+            }
         }
         Ok(())
     }
