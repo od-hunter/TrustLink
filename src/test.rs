@@ -287,6 +287,59 @@ fn test_create_attestation_rejects_self_attestation() {
 }
 
 #[test]
+fn test_create_attestation_rejects_past_expiration() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup(&env);
+
+    let subject = Address::generate(&env);
+    let claim_type = String::from_str(&env, "KYC_PASSED");
+
+    env.ledger().with_mut(|li| li.timestamp = 1_000);
+
+    let now = env.ledger().timestamp();
+    let past_expiration = Some(now - 1);
+
+    let result = client.try_create_attestation(
+        &issuer,
+        &subject,
+        &claim_type,
+        &past_expiration,
+        &None,
+        &None,
+    );
+
+    assert_eq!(result, Err(Ok(Error::InvalidExpiration)));
+}
+
+#[test]
+fn test_create_attestation_accepts_future_expiration() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (_, issuer, client) = setup(&env);
+
+    let subject = Address::generate(&env);
+    let claim_type = String::from_str(&env, "KYC_PASSED");
+
+    env.ledger().with_mut(|li| li.timestamp = 1_000);
+
+    let future_expiration = Some(env.ledger().timestamp() + 1);
+
+    let id = client.create_attestation(
+        &issuer,
+        &subject,
+        &claim_type,
+        &future_expiration,
+        &None,
+        &None,
+    );
+
+    let attestation = client.get_attestation(&id);
+    assert_eq!(attestation.expiration, future_expiration);
+    assert!(client.has_valid_claim(&subject, &claim_type));
+}
+
+#[test]
 fn test_create_attestation_rejects_metadata_over_256_chars() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1555,6 +1608,57 @@ fn test_health_check_after_operations() {
     assert_eq!(status.issuer_count, 1);
 }
 
+// ── Error variant coverage ───────────────────────────────────────────────────
+
+#[test]
+fn test_error_already_initialized() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let (_, client) = create_test_contract(&env);
+
+    client.initialize(&admin, &None);
+    let result = client.try_initialize(&admin, &None);
+    assert_eq!(result, Err(Ok(Error::AlreadyInitialized)));
+}
+
+#[test]
+fn test_error_not_initialized() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Call get_version (which requires initialization) before initialize.
+    let (_, client) = create_test_contract(&env);
+    let result = client.try_get_version();
+    assert_eq!(result, Err(Ok(Error::NotInitialized)));
+}
+
+#[test]
+fn test_error_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (_, _, client) = setup(&env);
+    let fake_id = String::from_str(&env, "nonexistent_attestation_id");
+    let result = client.try_get_attestation(&fake_id);
+    assert_eq!(result, Err(Ok(Error::NotFound)));
+}
+
+#[test]
+fn test_error_already_revoked() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (_, issuer, client) = setup(&env);
+    let subject = Address::generate(&env);
+    let claim_type = String::from_str(&env, "KYC_PASSED");
+
+    let id = client.create_attestation(&issuer, &subject, &claim_type, &None, &None, &None);
+    client.revoke_attestation(&issuer, &id, &None);
+
+    let result = client.try_revoke_attestation(&issuer, &id, &None);
+    assert_eq!(result, Err(Ok(Error::AlreadyRevoked)));
 // ---------------------------------------------------------------------------
 // Issuer removal – attestation persistence
 // ---------------------------------------------------------------------------

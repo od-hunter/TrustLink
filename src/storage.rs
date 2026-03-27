@@ -30,7 +30,8 @@
 
 use crate::types::{
     Attestation, AuditEntry, ClaimTypeInfo, Endorsement, Error, ExpirationHook, FeeConfig,
-    GlobalStats, IssuerMetadata, IssuerStats, IssuerTier, MultiSigProposal, TtlConfig,
+    GlobalStats, IssuerMetadata, IssuerStats, IssuerTier, MultiSigProposal, RateLimitConfig,
+    TtlConfig,
 };
 use soroban_sdk::{contracttype, Address, Env, String, Vec};
 use crate::types::{Attestation, ClaimTypeInfo, Error, IssuerMetadata, StorageLimits};
@@ -80,6 +81,10 @@ pub enum StorageKey {
     AuditLog(String),
     /// Global pause flag — when present and true, write operations are disabled.
     Paused,
+    /// Rate limit configuration (min_issuance_interval in seconds).
+    RateLimitConfig,
+    /// Last issuance timestamp for an issuer, keyed by issuer address.
+    LastIssuanceTime(Address),
 }
 
 const DAY_IN_LEDGERS: u32 = 17280;
