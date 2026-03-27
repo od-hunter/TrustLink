@@ -127,6 +127,7 @@ pub struct Attestation {
     pub expiration: Option<u64>,
     pub revoked: bool,
     pub metadata: Option<String>,
+    pub jurisdiction: Option<String>,
     pub valid_from: Option<u64>,
     pub imported: bool,
     pub bridged: bool,
