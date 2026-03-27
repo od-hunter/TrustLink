@@ -49,6 +49,24 @@ fn validate_metadata(metadata: &Option<String>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Claim type must be non-empty and at most 64 characters.
+/// Only alphanumeric characters, underscores, and hyphens are allowed.
+fn validate_claim_type(claim_type: &String) -> Result<(), Error> {
+    let len = claim_type.len();
+    if len == 0 || len > 64 {
+        return Err(Error::InvalidClaimType);
+    }
+    // Copy into a fixed-size stack buffer and validate each byte.
+    let mut buf = [0u8; 64];
+    claim_type.copy_into_slice(&mut buf[..len as usize]);
+    for &byte in &buf[..len as usize] {
+        if !matches!(byte, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_' | b'-') {
+            return Err(Error::InvalidClaimType);
+        }
+    }
+    Ok(())
+}
+
 fn validate_reason(reason: &Option<String>) -> Result<(), Error> {
     if let Some(r) = reason {
         if r.len() > 128 {
@@ -458,8 +476,9 @@ impl TrustLinkContract {
         tags: Option<Vec<String>>,
     ) -> Result<String, Error> {
         issuer.require_auth();
-        Validation::require_not_paused(env)?;
-        Validation::require_issuer(env, &issuer)?;
+        Validation::require_not_paused(&env)?;
+        Validation::require_issuer(&env, &issuer)?;
+        validate_claim_type(&claim_type)?;
         validate_metadata(&metadata)?;
         validate_jurisdiction(env, &jurisdiction)?;
         validate_tags(&tags)?;
@@ -685,6 +704,7 @@ impl TrustLinkContract {
     ) -> Result<Vec<String>, Error> {
         issuer.require_auth();
         Validation::require_issuer(&env, &issuer)?;
+        validate_claim_type(&claim_type)?;
         validate_native_expiration(&env, expiration)?;
         check_rate_limit(&env, &issuer)?;
 
@@ -1250,6 +1270,7 @@ impl TrustLinkContract {
     ) -> Result<(), Error> {
         admin.require_auth();
         Validation::require_admin(&env, &admin)?;
+        validate_claim_type(&claim_type)?;
 
         let info = ClaimTypeInfo {
             claim_type: claim_type.clone(),
@@ -1598,6 +1619,7 @@ impl TrustLinkContract {
         subject.require_auth();
         Validation::require_not_paused(&env)?;
         Validation::require_issuer(&env, &issuer)?;
+        validate_claim_type(&claim_type)?;
 
         let timestamp = env.ledger().timestamp();
         let id = AttestationRequest::generate_id(&env, &subject, &issuer, &claim_type, timestamp);
